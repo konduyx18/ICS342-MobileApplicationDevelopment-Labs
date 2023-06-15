@@ -1,8 +1,12 @@
 package com.ics342.labs
 
+// importing all the necessary libraries for the classes,
+// functions, and composables that will be used in the file
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,9 +28,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ics342.labs.data.DataItem
 import com.ics342.labs.ui.theme.LabsTheme
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 
-
-
+// A list of DataItem objects is created as a source of data for the list.
 private val dataItems = listOf(
     DataItem(1, "Item 1", "Description 1"),
     DataItem(2, "Item 2", "Description 2"),
@@ -49,28 +56,57 @@ private val dataItems = listOf(
     DataItem(19, "Item 19", "Description 19"),
     DataItem(20, "Item 20", "Description 20"),
 )
-
+// MainActivity: This is the main activity class that extends ComponentActivity
 class MainActivity : ComponentActivity() {
+
+    // onCreate: This is the first method that gets called when our activity is created
+    // Here we define the UI for our activity.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // This block is where you define the UI using Jetpack Compose.
+        // Define two state variables: showDialog and currentDataItem.
+        // showDialog is a Boolean that controls whether the dialog is shown,
+        // and currentDataItem holds the DataItem that was clicked
         setContent {
+            val showDialog = remember { mutableStateOf(false) }
+            val currentDataItem = remember { mutableStateOf<DataItem?>(null) }
+
+            // provide styling for the app.
+            // Surface provides a background and other view configurations
             LabsTheme {
-                // applies some design like color, shape, elevation, etc. to its children
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    //Greeting("Android")
-                    DataItemList(dataItems = dataItems)
+                    //  A function that displays a list of items. The items are created using the DataItemView function.
+                    //  When an item is clicked, currentDataItem is set to the clicked item and showDialog is set to true
+
+                    DataItemList(dataItems = dataItems) { dataItem ->
+                        currentDataItem.value = dataItem
+                        showDialog.value = true
+                    }
+                    if (showDialog.value) {
+                        // This is a Composable function that shows a dialog.
+                        // It is only shown if showDialog is true.
+                        // The title and message of the dialog are taken from currentDataItem.
+                        // The dialog is dismissed when the "Okay" button is clicked
+                        AlertDialog(
+                            onDismissRequest = { showDialog.value = false },
+                            title = { Text(text = currentDataItem.value?.name ?: "") },
+                            text = { Text(text = currentDataItem.value?.description ?: "") },
+                            confirmButton = {
+                                Button(onClick = { showDialog.value = false }) {
+                                    Text("Okay")
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
     }
 }
-
-// Greeting: This is a simple composable function that displays a string of text on the screen.
-// The text is "Hello $name!", where $name is replaced with the input to the function.
-
+// displays a greeting message
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
     Text(
@@ -78,22 +114,19 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
         modifier = modifier
     )
 }
-// DataItemView: This Composable function defines the UI for each individual item in your list
-// It takes a DataItem as an argument and formats the id, name, and description
-// It's using a Row to place items horizontally.
 
-// First, it places the id and the name next to each other, both with larger, bold font
-// Then, it displays the description below them with smaller font.
-// The Spacer is used to add some space between elements.
-
+//  a Composable function that displays a DataItem
+//  When the Row within this function is clicked, it triggers
+//  the onItemClicked function passed as a parameter
 @Composable
-fun DataItemView(dataItem: DataItem) {
-    /* Create the view for the data item here. */
-
+fun DataItemView(dataItem: DataItem, onItemClicked: () -> Unit) {
     Row(
-        horizontalArrangement = Arrangement.Start,
-        modifier = Modifier.height(60.dp).fillMaxWidth(),
-    ){
+        modifier = Modifier
+            .height(60.dp)
+            .fillMaxWidth()
+            .clickable { onItemClicked() },
+        horizontalArrangement = Arrangement.Start
+    ) {
         Text(
             text = "${dataItem.id}",
             fontSize = 30.sp,
@@ -112,32 +145,17 @@ fun DataItemView(dataItem: DataItem) {
         textAlign = TextAlign.Left,
         modifier = Modifier.fillMaxWidth()
     )
-    Text(
-        text = "",
-        fontSize = 20.sp
-    )
-
 }
-// I used the website: https://developer.android.com/jetpack/compose/lists
-// DataItemList: This Composable function takes a list of DataItems
-// and creates a vertical list using LazyColumn.
-// This is an efficient way to display lists in Jetpack Compose,
-// as it only renders the items currently visible on screen.
-// For each item in the list, it calls DataItemView to display that item.
-
+// displays a list of DataItem objects
+// For each item, a DataItemView is created
 @Composable
-fun DataItemList(dataItems: List<DataItem>) {
-    /* Create the list here. This function will call DataItemView() */
-
-    LazyColumn(){
-        items(items = dataItems){
-            DataItemView(dataItem = it)}
+fun DataItemList(dataItems: List<DataItem>, onItemClicked: (DataItem) -> Unit) {
+    LazyColumn() {
+        items(items = dataItems) { dataItem ->
+            DataItemView(dataItem = dataItem, onItemClicked = { onItemClicked(dataItem) })
+        }
     }
 }
-
-// Preview annotation: This is used to preview the Composable function in Android Studio.
-// The Greeting function is being previewed here.
-
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
