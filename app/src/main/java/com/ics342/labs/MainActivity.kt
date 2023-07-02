@@ -1,4 +1,4 @@
-// the website used as reference to complete the lab:
+// the website used as reference to complete the lab5:
 // https://developer.android.com/jetpack/compose/navigation
 
 package com.ics342.labs
