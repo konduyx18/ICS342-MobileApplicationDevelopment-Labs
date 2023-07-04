@@ -1,24 +1,16 @@
-package com.ics342.labs
+// the website used as reference to complete the lab5:
+// https://developer.android.com/jetpack/compose/navigation
 
-// importing all the necessary libraries for the classes,
-// functions, and composables that will be used in the file
+package com.ics342.labs
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -26,12 +18,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.*
 import com.ics342.labs.data.DataItem
 import com.ics342.labs.ui.theme.LabsTheme
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+
+//  enum class: defines routes for two screens: MainScreen and DetailsScreen
+enum class Screen(val route: String) {
+    MainScreen("main_screen"),
+    DetailsScreen("details_screen/{itemId}");
+
+    fun createRoute(itemId: Int): String {
+        return if (this == DetailsScreen) "details_screen/$itemId" else route
+    }
+}
+
 
 // A list of DataItem objects is created as a source of data for the list.
 private val dataItems = listOf(
@@ -56,68 +56,47 @@ private val dataItems = listOf(
     DataItem(19, "Item 19", "Description 19"),
     DataItem(20, "Item 20", "Description 20"),
 )
-// MainActivity: This is the main activity class that extends ComponentActivity
 class MainActivity : ComponentActivity() {
-
-    // onCreate: This is the first method that gets called when our activity is created
-    // Here we define the UI for our activity.
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // This block is where you define the UI using Jetpack Compose.
-        // Define two state variables: showDialog and currentDataItem.
-        // showDialog is a Boolean that controls whether the dialog is shown,
-        // and currentDataItem holds the DataItem that was clicked
         setContent {
-            val showDialog = remember { mutableStateOf(false) }
-            val currentDataItem = remember { mutableStateOf<DataItem?>(null) }
-
-            // provide styling for the app.
-            // Surface provides a background and other view configurations
             LabsTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    //  A function that displays a list of items. The items are created using the DataItemView function.
-                    //  When an item is clicked, currentDataItem is set to the clicked item and showDialog is set to true
+                    val navController = rememberNavController()
 
-                    DataItemList(dataItems = dataItems) { dataItem ->
-                        currentDataItem.value = dataItem
-                        showDialog.value = true
-                    }
-                    if (showDialog.value) {
-                        // This is a Composable function that shows a dialog.
-                        // It is only shown if showDialog is true.
-                        // The title and message of the dialog are taken from currentDataItem.
-                        // The dialog is dismissed when the "Okay" button is clicked
-                        AlertDialog(
-                            onDismissRequest = { showDialog.value = false },
-                            title = { Text(text = currentDataItem.value?.name ?: "") },
-                            text = { Text(text = currentDataItem.value?.description ?: "") },
-                            confirmButton = {
-                                Button(onClick = { showDialog.value = false }) {
-                                    Text("Okay")
-                                }
+                    // NavHost is a container: holds all navigation destinations
+                    // uses a NavGraph that contains routes for all screens
+                    NavHost(navController = navController, startDestination = Screen.MainScreen.route) {
+                        // composable defines a navigation destination
+                        composable(Screen.MainScreen.route) {
+                            // Displays a list of dataItems on MainScreen
+                            DataItemList(dataItems = dataItems) { dataItem ->
+                                // On item click, navigates to DetailsScreen with the id of clicked item
+                                navController.navigate(Screen.DetailsScreen.createRoute(dataItem.id))
                             }
-                        )
+                        }
+                        composable("details_screen/{itemId}") { backStackEntry ->
+                            // Retrieve the clicked item's id from the arguments
+                            val itemId = backStackEntry.arguments?.getString("itemId")?.toInt()
+                            // Find the dataItem with the provided id
+                            val dataItem = dataItems.find { it.id == itemId }
+
+                            if (dataItem != null) {
+                                DetailsScreen(dataItem)
+                            } else {
+                                Text(text = "Item not found")
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
-// displays a greeting message
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
 
-//  a Composable function that displays a DataItem
-//  When the Row within this function is clicked, it triggers
-//  the onItemClicked function passed as a parameter
 @Composable
 fun DataItemView(dataItem: DataItem, onItemClicked: () -> Unit) {
     Row(
@@ -146,20 +125,36 @@ fun DataItemView(dataItem: DataItem, onItemClicked: () -> Unit) {
         modifier = Modifier.fillMaxWidth()
     )
 }
-// displays a list of DataItem objects
-// For each item, a DataItemView is created
+
 @Composable
 fun DataItemList(dataItems: List<DataItem>, onItemClicked: (DataItem) -> Unit) {
     LazyColumn() {
         items(items = dataItems) { dataItem ->
-            DataItemView(dataItem = dataItem, onItemClicked = { onItemClicked(dataItem) })
+            DataItemView(dataItem = dataItem) { onItemClicked(dataItem) }
         }
     }
 }
+
+@Composable
+fun DetailsScreen(dataItem: DataItem) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text(text = "ID: ${dataItem.id}", fontSize = 20.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "Name: ${dataItem.name}", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "Description: ${dataItem.description}", fontSize = 16.sp)
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
     LabsTheme {
-        Greeting("Android")
+        // update this to preview any screen you like
+        DataItemView(dataItem = DataItem(1, "Preview Item", "Preview Description")) {}
     }
 }
