@@ -1,3 +1,5 @@
+// Lab 7: how to request a permission
+
 package com.ics342.labs
 
 import android.Manifest
@@ -31,23 +33,51 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            var hasPermission // state for tracking if the permission has been granted
-            var showPermissionRationale // state for tracking if the rationale should be shown
+            // defines a mutable state for whether the app has the required permission or not.
+            // initially set to false.
+            var hasPermission by remember { mutableStateOf(false) }
+            // defines a mutable state for whether to show the permission rationale dialog.
+            // initially set to false.
+            var showPermissionRationale by remember { mutableStateOf(false) }
+
+            //  gets the current context
             val context = LocalContext.current
 
-            val launcher = // The ManagedActivityResultLauncher for handling requesting permission
+            // sets up a request for permission and defines what to do when the result is returned
+            val launcher = rememberLauncherForActivityResult(RequestPermission()) { isGranted: Boolean ->
+                hasPermission = isGranted
+                showPermissionRationale = !isGranted
+            }
 
             LabsTheme {
-                // A surface container using the 'background' color from the theme
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        //  If the app has permission, it shows a view with a text indicating that.
+                        //  Otherwise, it shows a button to request permission.
+                        if (hasPermission) {
+                            LocationView()
+                        } else {
+                            Button(onClick = {
+                                checkOrRequestPermission(
+                                    context,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                                    launcher
+                                ) {
+                                    hasPermission = true
+                                }
+                            }) {
+                                Text("Request Location Permission")
+                            }
+                        }
+                        // If showPermissionRationale is true, it shows a dialog
+                        // explaining why the app needs the permission.
 
-                        // if permission has been granted, show the LocationView
-                        // else if permission has not been granted, show a button to to request permission
-
-                        // --------
-
-                        // if user has denied permission and we should show the rationale, show the dialog
+                        if (showPermissionRationale) {
+                            PermissionRationaleDialog(
+                                onConfirm = { launcher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
+                                onCancel = { showPermissionRationale = false }
+                            )
+                        }
                     }
                 }
             }
@@ -59,7 +89,8 @@ class MainActivity : ComponentActivity() {
 private fun LocationView() {
     Text("Has Location Permission")
 }
-
+// displays an AlertDialog explaining why the app needs the permission.
+// the dialog has an OK button and a No button with respective click handlers.
 @Composable
 private fun PermissionRationaleDialog(
     onConfirm: () -> Unit,
@@ -85,15 +116,20 @@ private fun PermissionRationaleDialog(
         }
     )
 }
-
+// function checks if the app has the specified permission.
+// If it does, it calls the permissionGranted function.
+// If it doesn't, it launches a request for the permission.
 private fun checkOrRequestPermission(
     context: Context,
     permission: String,
     launcher: ManagedActivityResultLauncher<String, Boolean>,
     permissionGranted: () -> Unit
 ) {
-    // Ask Android if the app has the permission with ContextCompat.checkSelfPermission
-
-    // if permission is granted, call the permission granted function
-    // if permission is not granted, launch the launcher for the permission
+    if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
+        permissionGranted()
+    } else {
+        launcher.launch(permission)
+    }
 }
+
+
